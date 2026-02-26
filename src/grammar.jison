@@ -1,12 +1,13 @@
 /* Lexer */
 %lex
 %%
-\s+                   /* skip whitespace */
-[0-9]+                return 'NUMBER';
-"**"                  return 'OP';
-[-+*/]                return 'OP';
-<<EOF>>               return 'EOF';
-.                     return 'INVALID';
+\s+                   { /* skip whitespace */; }
+"//"[^\n]*          { /* skip single-line comment */ }
+[0-9]+                { return 'NUMBER';       }
+"**"                  { return 'OP';           }
+[-+*/]                { return 'OP';           }
+<<EOF>>               { return 'EOF';          }
+.                     { return 'INVALID';      }
 /lex
 
 /* Parser */

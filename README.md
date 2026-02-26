@@ -116,3 +116,5 @@ La regla `.` coincide con cualquier carácter no reconocido por reglas anteriore
 Sirve para detectar símbolos inválidos y generar un error controlado, evitando bloqueos del lexer y facilitando diagnósticos.
 
 ---
+
+
