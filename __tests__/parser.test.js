@@ -178,4 +178,28 @@ describe('Parser Tests', () => {
       expect(parse("2 * 3 + 4 * 5")).toBe(26);   // (2 * 3) + (4 * 5) = 26
     });
   });
+
+  describe('Lexer improvements', () => {
+
+    test('ignores single-line comments', () => {
+      expect(parse('2+3 // comentario')).toBe(5);
+    });
+
+    test('parses floating point numbers', () => {
+      expect(parse('2.5+2.5')).toBe(5);
+    });
+
+    test('parses scientific notation (lowercase e)', () => {
+      expect(parse('2.35e-3')).toBeCloseTo(0.00235);
+    });
+
+    test('parses scientific notation (uppercase E)', () => {
+      expect(parse('2.35E+3')).toBe(2350);
+    });
+
+    test('still parses integers', () => {
+      expect(parse('23')).toBe(23);
+    });
+
+  });
 });
