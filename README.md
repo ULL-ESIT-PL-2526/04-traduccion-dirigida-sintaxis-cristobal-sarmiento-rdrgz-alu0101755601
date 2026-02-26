@@ -152,3 +152,137 @@ Interpretación:
 - Exponente opcional: `([eE][+-]?[0-9]+)?`
 
 ---
+
+## 5. Pruebas añadidas (`__tests__/parser.test.js`)
+
+Se añadieron pruebas Jest para verificar:
+
+- Que los comentarios `//` se ignoran correctamente
+- Que se reconocen enteros
+- Que se reconocen flotantes
+- Que se reconoce notación científica con `e/E`
+- (Opcional) Si el proyecto implementa potencia con `**`, comprobar que `2**3 = 8`
+
+Ejemplos de casos:
+
+- `2+3 // comentario` → `5`
+- `2.5+2.5` → `5`
+- `2.35e-3` → `0.00235`
+- `23` → `23`
+
+
+## 6. Precedencia y asociatividad de operadores (arreglo implementado)
+
+### 6.1 Problema detectado
+
+En la versión inicial del parser todos los operadores se trataban como un único token genérico (OP).
+Eso provocaba que las expresiones se evaluaran estrictamente de izquierda a derecha, sin respetar el orden matemático estándar.
+
+Ejemplo del problema:
+
+- Entrada: 2 + 3 * 4
+- Evaluación incorrecta: (2 + 3) * 4 = 20
+- Resultado correcto esperado: 2 + (3 * 4) = 14
+
+También ocurría con la potencia:
+
+- Entrada: 2 ** 3 ** 2
+- Evaluación incorrecta izquierda a derecha: (2 ** 3) ** 2 = 64
+- Resultado correcto: 2 ** (3 ** 2) = 512
+
+---
+
+### 6.2 Solución aplicada
+
+Para solucionar el problema se realizaron dos cambios fundamentales:
+
+1) El lexer ahora devuelve cada operador como token literal ('+', '-', '*', '/', '**') en lugar de un token genérico OP.
+2) Se añadieron declaraciones de precedencia y asociatividad en el parser usando %left y %right.
+
+---
+
+### 6.3 Cambios en el lexer
+
+Antes se devolvía algo como:
+
+    return 'OP';
+
+Ahora cada operador devuelve su propio token:
+
+    "**"   { return '**'; }
+    "+"    { return '+'; }
+    "-"    { return '-'; }
+    "*"    { return '*'; }
+    "/"    { return '/'; }
+
+Esto permite que el parser distinga correctamente cada operador y pueda aplicar precedencia.
+
+---
+
+### 6.4 Declaración de precedencia y asociatividad
+
+Antes de las reglas del parser (antes de %%), se añadieron las siguientes declaraciones:
+
+    %left '+' '-'
+    %left '*' '/'
+    %right '**'
+
+Significado:
+
+- Suma y resta tienen menor precedencia y son asociativas a la izquierda.
+- Multiplicación y división tienen mayor precedencia que suma y resta, y son asociativas a la izquierda.
+- La potencia tiene la mayor precedencia y es asociativa a la derecha.
+
+La asociatividad derecha es necesaria para que:
+
+    2 ** 3 ** 2
+
+se interprete como:
+
+    2 ** (3 ** 2)
+
+y no como:
+
+    (2 ** 3) ** 2
+
+---
+
+### 6.5 Reglas del parser con precedencia
+
+Las producciones quedaron definidas de la siguiente forma:
+
+    expression
+      : expression '+' expression    { $$ = $1 + $3; }
+      | expression '-' expression    { $$ = $1 - $3; }
+      | expression '*' expression    { $$ = $1 * $3; }
+      | expression '/' expression    { $$ = $1 / $3; }
+      | expression '**' expression   { $$ = Math.pow($1, $3); }
+      | NUMBER                       { $$ = Number(yytext); }
+      ;
+
+Gracias a las declaraciones %left y %right, Jison resuelve automáticamente los conflictos aplicando el orden correcto.
+
+---
+
+### 6.6 Ejemplos verificados
+
+Con esta implementación el parser evalúa correctamente:
+
+- 2 + 3 * 4 = 14
+- 10 - 6 / 2 = 7
+- 2 + 3 ** 2 = 11
+- 2 * 3 ** 2 = 18
+- 2 ** 3 ** 2 = 512
+- 1 + 2 * 3 - 4 = 3
+
+---
+
+### 6.7 Conclusión
+
+El orden correcto de evaluación se logró mediante:
+
+- Devolver tokens específicos por operador desde el lexer.
+- Declarar precedencia y asociatividad en el parser.
+- Definir reglas explícitas por operador.
+
+De esta forma el analizador sintáctico respeta el orden matemático estándar y supera los tests de precedencia y asociatividad.

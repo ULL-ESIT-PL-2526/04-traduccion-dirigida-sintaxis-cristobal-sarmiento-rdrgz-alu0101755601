@@ -4,8 +4,11 @@
 \s+                                                 { /* skip whitespace */; }
 "//"[^\n]*                                          { /* skip single-line comment */ }
 [0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?                 { return 'NUMBER';       }
-"**"                                                { return 'OP';           }
-[-+*/]                                              { return 'OP';           }
+"**"            { return '**'; }
+"+"             { return '+'; }
+"-"             { return '-'; }
+"*"             { return '*'; }
+"/"             { return '/'; }          
 <<EOF>>                                             { return 'EOF';          }
 .                                                   { return 'INVALID';      }
 /lex
@@ -13,32 +16,23 @@
 /* Parser */
 %start expressions
 %token NUMBER
+
+%left '+' '-'
+%left '*' '/'
+%right '**'
+
 %%
 
 expressions
     : expression EOF
-        { return $expression; }
+        { return $1; }
     ;
 
 expression
-    : expression OP term
-        { $$ = operate($OP, $expression, $term); }
-    | term
-        { $$ = $term; }
+    : expression '+' expression   { $$ = $1 + $3; }
+    | expression '-' expression   { $$ = $1 - $3; }
+    | expression '*' expression   { $$ = $1 * $3; }
+    | expression '/' expression   { $$ = $1 / $3; }
+    | expression '**' expression  { $$ = Math.pow($1, $3); }
+    | NUMBER                      { $$ = Number(yytext); }
     ;
-
-term
-    : NUMBER
-        { $$ = Number(yytext); }
-    ;
-%%
-
-function operate(op, left, right) {
-    switch (op) {
-        case '+': return left + right;
-        case '-': return left - right;
-        case '*': return left * right;
-        case '/': return left / right;
-        case '**': return Math.pow(left, right);
-    }
-}
