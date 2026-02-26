@@ -117,4 +117,38 @@ Sirve para detectar símbolos inválidos y generar un error controlado, evitando
 
 ---
 
+## 4. Modificaciones realizadas en el lexer (`src/grammar.jison`)
 
+### 4.1 Ignorar comentarios de una línea `// ...`
+
+Se añadió una regla al bloque `%lex` para consumir comentarios de una línea que empiezan por `//` hasta el fin de línea y no devolver tokens.
+
+Regla añadida (una forma válida):
+
+    "//"[^\n]*   { /* skip single-line comment */ }
+
+(Alternativa equivalente):
+
+    "//".*     { /* skip single-line comment */ }
+
+---
+
+### 4.2 Reconocer números flotantes y notación científica
+
+Se modificó la regla `NUMBER` para aceptar:
+
+- Enteros: `23`
+- Flotantes: `2.35`
+- Notación científica: `2.35e-3`, `2.35e+3`, `2.35E-3`
+
+Expresión regular utilizada:
+
+    [0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?
+
+Interpretación:
+
+- Parte entera obligatoria: `[0-9]+`
+- Parte decimal opcional: `(\.[0-9]+)?`
+- Exponente opcional: `([eE][+-]?[0-9]+)?`
+
+---
