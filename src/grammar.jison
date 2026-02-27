@@ -2,13 +2,10 @@
 %lex
 %%
 \s+                                                 { /* skip whitespace */; }
-"//"[^\n]*                                          { /* skip single-line comment */ }
+"//".*                                          { /* skip single-line comment */ }
 [0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?                 { return 'NUMBER';       }
-"**"            { return '**'; }
-"+"             { return '+'; }
-"-"             { return '-'; }
-"*"             { return '*'; }
-"/"             { return '/'; }          
+"**"                  { return 'OP';           }
+[-+*/]                { return 'OP';           }     
 <<EOF>>                                             { return 'EOF';          }
 .                                                   { return 'INVALID';      }
 /lex
@@ -17,22 +14,30 @@
 %start expressions
 %token NUMBER
 
-%left '+' '-'
-%left '*' '/'
-%right '**'
-
-%%
-
 expressions
     : expression EOF
-        { return $1; }
+        { return $expression; }
     ;
 
 expression
-    : expression '+' expression   { $$ = $1 + $3; }
-    | expression '-' expression   { $$ = $1 - $3; }
-    | expression '*' expression   { $$ = $1 * $3; }
-    | expression '/' expression   { $$ = $1 / $3; }
-    | expression '**' expression  { $$ = Math.pow($1, $3); }
-    | NUMBER                      { $$ = Number(yytext); }
+    : expression OP term
+        { $$ = operate($OP, $expression, $term); }
+    | term
+        { $$ = $term; }
     ;
+
+term
+    : NUMBER
+        { $$ = Number(yytext); }
+    ;
+%%
+
+function operate(op, left, right) {
+    switch (op) {
+        case '+': return left + right;
+        case '-': return left - right;
+        case '*': return left * right;
+        case '/': return left / right;
+        case '**': return Math.pow(left, right);
+    }
+}
