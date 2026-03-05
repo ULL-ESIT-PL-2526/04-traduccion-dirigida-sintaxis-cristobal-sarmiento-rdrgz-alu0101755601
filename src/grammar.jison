@@ -4,8 +4,14 @@
 \s+                                                 { /* skip whitespace */; }
 "//"[^\n]*                                          { /* skip single-line comment */ }
 [0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?                 { return 'NUMBER';       }
-"**"                  { return 'OP';           }
-[-+*/]                { return 'OP';           }     
+
+"**"                                { return 'OPOW'; }
+[-+]                                { return 'OPAD'; }
+[*/]                                { return 'OPMU'; }
+
+"("                                 { return 'LPAREN'; }
+")"                                 { return 'RPAREN'; }
+
 <<EOF>>                                             { return 'EOF';          }
 .                                                   { return 'INVALID';      }
 /lex
@@ -13,6 +19,10 @@
 /* Parser */
 %start expressions
 %token NUMBER
+%token OPAD OPMU OPOW
+%token LPAREN RPAREN
+
+%%
 
 expressions
     : expression EOF
@@ -20,16 +30,33 @@ expressions
     ;
 
 expression
-    : expression OP term
-        { $$ = operate($OP, $expression, $term); }
+    : expression OPAD term
+        { $$ = operate($OPAD, $expression, $term); }
     | term
         { $$ = $term; }
     ;
 
 term
+    : term OPMU power
+        { $$ = operate($OPMU, $term, $power); }
+    | power
+        { $$ = $power; }
+    ;
+
+power
+    : factor OPOW power
+        { $$ = operate($OPOW, $factor, $power); }  /* asociatividad derecha */
+    | factor
+        { $$ = $factor; }
+    ;
+
+factor
     : NUMBER
         { $$ = Number(yytext); }
+    | LPAREN expression RPAREN
+        { $$ = $expression; }
     ;
+
 %%
 
 function operate(op, left, right) {
