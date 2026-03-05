@@ -1,3 +1,5 @@
+const parse = require("../src/parser.js").parse;
+
 describe('Parser Failing Tests', () => {
   test('should handle multiplication and division before addition and subtraction', () => {
     expect(parse("2 + 3 * 4")).toBe(14); // 2 + (3 * 4) = 14

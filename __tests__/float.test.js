@@ -1,4 +1,4 @@
-const parse = require('../src/index.js');
+const parse = require("../src/parser.js").parse;
 
 describe('Float precedence tests', () => {
 
