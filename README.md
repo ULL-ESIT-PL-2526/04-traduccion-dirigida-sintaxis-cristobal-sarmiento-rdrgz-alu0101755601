@@ -309,18 +309,34 @@ float.test.js
 ```javascript
 describe('Float precedence tests', () => {
 
-    test('multiplication precedence with floats', () => {
-        expect(parse("2.5 + 3.0 * 2")).toBe(8.5);
-    });
+  test('should handle addition and multiplication with floats', () => {
+    expect(parse("2.5 + 3.0 * 2")).toBe(8.5);
+    expect(parse("1.5 + 2.5 * 2")).toBe(6.5);
+  });
 
-    test('division precedence with floats', () => {
-        expect(parse("10.0 - 4.0 / 2")).toBe(8);
-    });
+  test('should handle division precedence with floats', () => {
+    expect(parse("10.0 - 4.0 / 2")).toBe(8);
+    expect(parse("5.5 - 3.0 / 2")).toBe(4);
+  });
 
-    test('power precedence with floats', () => {
-        expect(parse("2.0 * 3.0 ** 2")).toBe(18);
-    });
+  test('should handle multiplication and addition with floats', () => {
+    expect(parse("2.5 * 2 + 3")).toBe(8);
+    expect(parse("1.5 * 4 + 1")).toBe(7);
+  });
 
+  test('should handle exponentiation with floats', () => {
+    expect(parse("2.0 ** 3")).toBe(8);
+    expect(parse("4.0 ** 0.5")).toBe(2);
+  });
+
+  test('should handle exponentiation precedence with floats', () => {
+    expect(parse("2.0 * 3.0 ** 2")).toBe(18);
+    expect(parse("1.5 + 2.0 ** 3")).toBe(9.5);
+  });
+
+  test('should handle right associativity for exponentiation with floats', () => {
+    expect(parse("2.0 ** 3.0 ** 2.0")).toBe(512);
+  });
 });
 ```
 
@@ -359,19 +375,30 @@ parentheses.test.js
 ```javascript
 describe('Parentheses tests', () => {
 
-    test('simple parentheses', () => {
-        expect(parse("(2 + 3) * 4")).toBe(20);
-    });
+  test('should evaluate parentheses changing precedence', () => {
+    expect(parse("(2 + 3) * 4")).toBe(20);     // (2+3)*4
+    expect(parse("2 * (3 + 5)")).toBe(16);     // 2*(3+5)
+    expect(parse("(10 - 6) / 2")).toBe(2);     // (10-6)/2
+  });
 
-    test('nested parentheses', () => {
-        expect(parse("(2 + (3 * 4))")).toBe(14);
-    });
+  test('should handle nested parentheses', () => {
+    expect(parse("(2 + (3 * 4))")).toBe(14);   // 2 + (3*4)
+    expect(parse("((1 + 2) * (3 + 4))")).toBe(21); // (1+2)*(3+4)
+  });
 
-    test('power with parentheses', () => {
-        expect(parse("(2 ** 3) ** 2")).toBe(64);
-    });
+  test('should handle parentheses with exponentiation', () => {
+    expect(parse("(2 ** 3) ** 2")).toBe(64);   // (2^3)^2 = 8^2
+    expect(parse("2 ** (3 ** 2)")).toBe(512);  // 2^(3^2) = 2^9
+  });
 
-});
+  test('should handle parentheses with floats', () => {
+    expect(parse("(2.5 + 2.5) * 2")).toBe(10); // (2.5+2.5)*2
+    expect(parse("4.0 ** (1.0 / 2.0)")).toBe(2); // 4^(0.5)=2
+  });
+
+  test('should ignore whitespace inside parentheses', () => {
+    expect(parse(" (  2 + 3 ) * 4 ")).toBe(20);
+  });
 ```
 
 ---
