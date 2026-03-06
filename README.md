@@ -1,172 +1,415 @@
-# Práctica de Laboratorio #4
-Procesadores de Lenguajes — Curso 2025/2026
-Grado en Ingeniería Informática
+# Práctica de Laboratorio #5  
+**Asignatura:** Procesadores de Lenguajes  
+**Grado:** Ingeniería Informática  
+**Curso:** 2025/2026  
 
 ---
 
-## 1. Descripción
+# 1. Análisis de la gramática inicial
 
-En esta práctica se parte de la siguiente gramática independiente del contexto para representar expresiones aritméticas:
+La práctica parte de una calculadora implementada con **Jison** mediante una **Syntax Directed Definition (SDD)**.
 
-    L → E
-    E → E op T | T
-    T → number
+## Gramática original
 
-Se implementa una calculadora utilizando **Jison** junto con una **Definición Dirigida por la Sintaxis (SDD)** que permite calcular el valor de la expresión reconocida.
+```txt
+L → E eof
+E → E op T
+E → T
+T → number
+```
 
-Además, se realizan las siguientes modificaciones al analizador léxico:
+## Reglas semánticas
 
-- Ignorar comentarios de una línea que comienzan por `//`
-- Reconocer números en punto flotante
-- Reconocer números en notación científica (`e` y `E`)
-- Añadir pruebas automáticas con Jest
+```txt
+L → E eof           L.value = E.value
+E → E1 op T         E.value = operate(op.lexvalue, E1.value, T.value)
+E → T               E.value = T.value
+T → number          T.value = convert(number.lexvalue)
+```
 
----
+El token **op** representa los operadores:
 
-## 2. Estructura del proyecto
+```
++  -  *  /  **
+```
 
-    .
-    ├── package.json
-    ├── package-lock.json
-    ├── README.md
-    ├── src
-    │   ├── grammar.jison
-    │   ├── index.js
-    │   └── parser.js        (generado con Jison)
-    └── __tests__
-        └── parser.test.js
+Esta gramática **no respeta la precedencia**, evaluando **de izquierda a derecha**.
 
 ---
 
-## 3. Instalación y ejecución
+# 1.1 Derivaciones
 
-### 3.1 Instalar dependencias
+## Expresión: `4.0 - 2.0 * 3.0`
 
-Desde la raíz del proyecto:
+```
+L
+→ E eof
+→ E op T
+→ E op T op T
+→ T op T op T
+→ number op number op number
+→ 4.0 - 2.0 * 3.0
+```
 
-    npm install
+## Expresión: `2 ** 3 ** 2`
 
-### 3.2 Generar el parser
+```
+L
+→ E eof
+→ E op T
+→ E op T op T
+→ T op T op T
+→ number op number op number
+→ 2 ** 3 ** 2
+```
 
-Cada vez que se modifique `src/grammar.jison`:
+## Expresión: `7 - 4 / 2`
 
-    npx jison src/grammar.jison -o src/parser.js
-
-### 3.3 Ejecutar las pruebas
-
-    npm test
-
----
-
-## 4. Parte Teórica 
-
-### 3.1 Diferencia entre `/* skip whitespace */` y devolver un token
-
-Cuando el lexer encuentra una regla como:
-
-    \s+ { /* skip whitespace */; }
-
-consume los caracteres (espacios, tabuladores, saltos de línea) pero **no devuelve ningún token al parser**.  
-Estos caracteres se ignoran y no participan en el análisis sintáctico.
-
-En cambio, cuando una regla devuelve un token:
-
-    return 'TOKEN';
-
-el parser recibe ese símbolo y lo utiliza para aplicar producciones de la gramática.
-
----
-
-### 3.2 Secuencia exacta de tokens para la entrada `123**45+@`
-
-Dado el lexer del enunciado:
-
-- `123` → `NUMBER`
-- `**` → `OP`
-- `45` → `NUMBER`
-- `+` → `OP`
-- `@` → `INVALID`
-- fin de entrada → `EOF`
-
-Secuencia exacta:
-
-    NUMBER OP NUMBER OP INVALID EOF
+```
+L
+→ E eof
+→ E op T
+→ E op T op T
+→ T op T op T
+→ number op number op number
+→ 7 - 4 / 2
+```
 
 ---
 
-### 3.3 Por qué `**` debe aparecer antes que `[-+*/]`
+# 1.2 Árboles de análisis sintáctico
 
-El lexer aplica las reglas en el orden en que están definidas.  
-Si `[-+*/]` apareciera antes que `"**"`, la entrada `**` se dividiría en dos coincidencias `*` y `*`, generando dos tokens `OP` en lugar de uno solo.
+## 4.0 - 2.0 * 3.0
 
-Por ello, las reglas más específicas deben colocarse antes que las más generales.
+```mermaid
+flowchart TB
+  E0["E"] --> E1["E"]
+  E0 --> OP2["op (*)"]
+  E0 --> T3["T"]
 
----
+  E1 --> E2["E"]
+  E1 --> OP1["op (-)"]
+  E1 --> T2["T"]
 
-### 3.4 Cuándo se devuelve `EOF`
+  E2 --> T1["T"]
+  T1 --> N1["number (4.0)"]
 
-El token `EOF` se devuelve cuando se alcanza el final de la entrada, es decir, cuando no quedan más caracteres por analizar.  
-Permite al parser saber que la expresión ha terminado correctamente.
+  T2 --> N2["number (2.0)"]
+  T3 --> N3["number (3.0)"]
+```
 
----
+Interpretación según la gramática:
 
-### 3.5 Por qué existe la regla `.` que devuelve `INVALID`
-
-La regla `.` coincide con cualquier carácter no reconocido por reglas anteriores.  
-Sirve para detectar símbolos inválidos y generar un error controlado, evitando bloqueos del lexer y facilitando diagnósticos.
-
----
-
-## 4. Modificaciones realizadas en el lexer (`src/grammar.jison`)
-
-### 4.1 Ignorar comentarios de una línea `// ...`
-
-Se añadió una regla al bloque `%lex` para consumir comentarios de una línea que empiezan por `//` hasta el fin de línea y no devolver tokens.
-
-Regla añadida (una forma válida):
-
-    "//"[^\n]*   { /* skip single-line comment */ }
-
-(Alternativa equivalente):
-
-    "//".*     { /* skip single-line comment */ }
+```
+(4.0 - 2.0) * 3.0
+= 6
+```
 
 ---
 
-### 4.2 Reconocer números flotantes y notación científica
+## 2 ** 3 ** 2
 
-Se modificó la regla `NUMBER` para aceptar:
+```mermaid
+flowchart TB
+  E0["E"] --> E1["E"]
+  E0 --> OP2["op (**)"]
+  E0 --> T3["T"]
 
-- Enteros: `23`
-- Flotantes: `2.35`
-- Notación científica: `2.35e-3`, `2.35e+3`, `2.35E-3`
+  E1 --> E2["E"]
+  E1 --> OP1["op (**)"]
+  E1 --> T2["T"]
 
-Expresión regular utilizada:
+  E2 --> T1["T"]
+  T1 --> N1["number (2)"]
 
-    [0-9]+(\.[0-9]+)?([eE][+-]?[0-9]+)?
+  T2 --> N2["number (3)"]
+  T3 --> N3["number (2)"]
+```
 
-Interpretación:
+Evaluación:
 
-- Parte entera obligatoria: `[0-9]+`
-- Parte decimal opcional: `(\.[0-9]+)?`
-- Exponente opcional: `([eE][+-]?[0-9]+)?`
+```
+(2 ** 3) ** 2
+= 8 ** 2
+= 64
+```
 
 ---
 
-## 5. Pruebas añadidas (`__tests__/parser.test.js`)
+## 7 - 4 / 2
 
-Se añadieron pruebas Jest para verificar:
+```mermaid
+flowchart TB
+  E0["E"] --> E1["E"]
+  E0 --> OP2["op (/)"]
+  E0 --> T3["T"]
 
-- Que los comentarios `//` se ignoran correctamente
-- Que se reconocen enteros
-- Que se reconocen flotantes
-- Que se reconoce notación científica con `e/E`
-- (Opcional) Si el proyecto implementa potencia con `**`, comprobar que `2**3 = 8`
+  E1 --> E2["E"]
+  E1 --> OP1["op (-)"]
+  E1 --> T2["T"]
 
-Ejemplos de casos:
+  E2 --> T1["T"]
+  T1 --> N1["number (7)"]
 
-- `2+3 // comentario` → `5`
-- `2.5+2.5` → `5`
-- `2.35e-3` → `0.00235`
-- `23` → `23`
+  T2 --> N2["number (4)"]
+  T3 --> N3["number (2)"]
+```
 
+Evaluación:
+
+```
+(7 - 4) / 2
+= 3 / 2
+= 1.5
+```
+
+---
+
+# 1.3 Orden de evaluación de acciones semánticas
+
+Las acciones se ejecutan **de abajo hacia arriba (bottom-up)**.
+
+## 4.0 - 2.0 * 3.0
+
+```
+convert(4.0)
+convert(2.0)
+operate('-',4,2)
+convert(3.0)
+operate('*',2,3)
+```
+
+Resultado:
+
+```
+6
+```
+
+---
+
+## 2 ** 3 ** 2
+
+```
+convert(2)
+convert(3)
+operate('**',2,3)
+convert(2)
+operate('**',8,2)
+```
+
+Resultado:
+
+```
+64
+```
+
+---
+
+## 7 - 4 / 2
+
+```
+convert(7)
+convert(4)
+operate('-',7,4)
+convert(2)
+operate('/',3,2)
+```
+
+Resultado:
+
+```
+1.5
+```
+
+---
+
+# 1.4 Tests que fallan
+
+Archivo:
+
+```
+__tests__/prec.test.js
+```
+
+```javascript
+const parse = require('../src/index.js');
+
+describe('Parser Failing Tests', () => {
+
+    test('should handle multiplication and division before addition and subtraction', () => {
+        expect(parse("2 + 3 * 4")).toBe(14);
+        expect(parse("10 - 6 / 2")).toBe(7);
+        expect(parse("5 * 2 + 3")).toBe(13);
+        expect(parse("20 / 4 - 2")).toBe(3);
+    });
+
+    test('should handle exponentiation with highest precedence', () => {
+        expect(parse("2 + 3 ** 2")).toBe(11);
+        expect(parse("2 * 3 ** 2")).toBe(18);
+        expect(parse("10 - 2 ** 3")).toBe(2);
+    });
+
+});
+```
+
+Estos tests fallan porque la gramática **no respeta precedencia**.
+
+---
+
+# 2. Nueva gramática con precedencia y asociatividad
+
+Precedencia correcta:
+
+```
+1. **  (mayor precedencia, asociativo derecha)
+2. * /
+3. + -
+```
+
+Nueva gramática:
+
+```
+L → E eof
+E → E opad T
+E → T
+T → T opmu R
+T → R
+R → F opow R
+R → F
+F → number
+```
+
+Reglas semánticas:
+
+```
+E → E1 opad T   E.value = operate(opad.lexvalue,E1.value,T.value)
+T → T1 opmu R   T.value = operate(opmu.lexvalue,T1.value,R.value)
+R → F opow R1   R.value = operate(opow.lexvalue,F.value,R1.value)
+F → number      F.value = convert(number.lexvalue)
+```
+
+Tokens:
+
+```
+opad → + -
+opmu → * /
+opow → **
+```
+
+---
+
+# 3. Tests con números flotantes
+
+Archivo:
+
+```
+float.test.js
+```
+
+```javascript
+describe('Float precedence tests', () => {
+
+  test('should handle addition and multiplication with floats', () => {
+    expect(parse("2.5 + 3.0 * 2")).toBe(8.5);
+    expect(parse("1.5 + 2.5 * 2")).toBe(6.5);
+  });
+
+  test('should handle division precedence with floats', () => {
+    expect(parse("10.0 - 4.0 / 2")).toBe(8);
+    expect(parse("5.5 - 3.0 / 2")).toBe(4);
+  });
+
+  test('should handle multiplication and addition with floats', () => {
+    expect(parse("2.5 * 2 + 3")).toBe(8);
+    expect(parse("1.5 * 4 + 1")).toBe(7);
+  });
+
+  test('should handle exponentiation with floats', () => {
+    expect(parse("2.0 ** 3")).toBe(8);
+    expect(parse("4.0 ** 0.5")).toBe(2);
+  });
+
+  test('should handle exponentiation precedence with floats', () => {
+    expect(parse("2.0 * 3.0 ** 2")).toBe(18);
+    expect(parse("1.5 + 2.0 ** 3")).toBe(9.5);
+  });
+
+  test('should handle right associativity for exponentiation with floats', () => {
+    expect(parse("2.0 ** 3.0 ** 2.0")).toBe(512);
+  });
+});
+```
+
+---
+
+# 4. Soporte para paréntesis
+
+Se añade la producción:
+
+```
+F → ( E )
+```
+
+Regla semántica:
+
+```
+F → ( E )   F.value = E.value
+```
+
+Esto permite expresiones como:
+
+```
+(2 + 3) * 4
+```
+
+---
+
+# 5. Tests para paréntesis
+
+Archivo:
+
+```
+parentheses.test.js
+```
+
+```javascript
+describe('Parentheses tests', () => {
+
+  test('should evaluate parentheses changing precedence', () => {
+    expect(parse("(2 + 3) * 4")).toBe(20);     // (2+3)*4
+    expect(parse("2 * (3 + 5)")).toBe(16);     // 2*(3+5)
+    expect(parse("(10 - 6) / 2")).toBe(2);     // (10-6)/2
+  });
+
+  test('should handle nested parentheses', () => {
+    expect(parse("(2 + (3 * 4))")).toBe(14);   // 2 + (3*4)
+    expect(parse("((1 + 2) * (3 + 4))")).toBe(21); // (1+2)*(3+4)
+  });
+
+  test('should handle parentheses with exponentiation', () => {
+    expect(parse("(2 ** 3) ** 2")).toBe(64);   // (2^3)^2 = 8^2
+    expect(parse("2 ** (3 ** 2)")).toBe(512);  // 2^(3^2) = 2^9
+  });
+
+  test('should handle parentheses with floats', () => {
+    expect(parse("(2.5 + 2.5) * 2")).toBe(10); // (2.5+2.5)*2
+    expect(parse("4.0 ** (1.0 / 2.0)")).toBe(2); // 4^(0.5)=2
+  });
+
+  test('should ignore whitespace inside parentheses', () => {
+    expect(parse(" (  2 + 3 ) * 4 ")).toBe(20);
+  });
+```
+
+---
+
+# Conclusión
+
+Se ha modificado la gramática original para:
+
+- Respetar la **precedencia de operadores**
+- Implementar la **asociatividad correcta**
+- Soportar **números flotantes**
+- Permitir **expresiones con paréntesis**
+
+Tras estas modificaciones, todos los tests pasan correctamente y el parser evalúa las expresiones según las reglas matemáticas estándar.

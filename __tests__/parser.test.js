@@ -128,9 +128,6 @@ describe('Parser Tests', () => {
     });
   });
 
-<<<<<<< HEAD
-});
-=======
   describe('FAILING TESTS - Correct Mathematical Operator Precedence (TO BE IMPLEMENTED)', () => {
     test('should handle multiplication and division before addition and subtraction', () => {
       expect(parse("2 + 3 * 4")).toBe(14);     // 2 + (3 * 4) = 14
@@ -196,4 +193,5 @@ describe('Parser Tests', () => {
 
   });
 });
->>>>>>> P4
+
+
